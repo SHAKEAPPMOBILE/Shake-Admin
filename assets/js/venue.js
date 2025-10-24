@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
         const { data: venue, error } = await window.supabaseClient
             .from('venues')
-            .select('*')
+            .select('*, venue_associated_activities(*)')
             .eq('id', venueId)
             .single()
 
@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             showMessage('Venue not found.', true)
             detailsDiv.innerHTML = 'Venue not found.'
         } else {
+            const associatedActivities = venue.venue_associated_activities?.map(act => act.activity_type).join(', ') || 'None'
             detailsDiv.innerHTML = `
                 <p><strong>ID:</strong> ${venue.id}</p>
                 <p><strong>Location Name:</strong> ${venue.location_name}</p>
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 <p><strong>Subdivision:</strong> ${venue.subdivision || 'N/A'}</p>
                 <p><strong>Country:</strong> ${venue.country}</p>
                 <p><strong>Coordinates:</strong> ${venue.coordinates ? `${venue.coordinates.coordinates[1]}, ${venue.coordinates.coordinates[0]}` : 'N/A'}</p>
+                <p><strong>Associated Activities:</strong> ${associatedActivities}</p>
                 <p><strong>Created At:</strong> ${new Date(venue.created_at).toLocaleString()}</p>
                 <p><strong>Updated At:</strong> ${new Date(venue.updated_at).toLocaleString()}</p>
             `
