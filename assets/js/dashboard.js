@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     userDataDiv.innerHTML = 'Loading...'
-    document.getElementById('venues-tbody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>'
+    document.getElementById('venues-tbody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>'
 
     const session = await window.checkAuth()
 
@@ -46,17 +46,18 @@ document.addEventListener('DOMContentLoaded', async function() {
             <p><strong>Last Sign In:</strong> ${new Date(user.last_sign_in_at).toLocaleString()}</p>
         `
 
-        // Fetch and display venues
-        const { data: venues, error: venuesError } = await supabaseClient.from('venues').select('*')
+        // Fetch venues with associated activities
+        const { data: venues, error: venuesError } = await supabaseClient.from('venues').select('*, venue_associated_activities(*)')
 
         if (venuesError) {
             showMessage('Error loading venues: ' + venuesError.message, true)
-            document.getElementById('venues-tbody').innerHTML = '<tr><td colspan="6">Error loading venues</td></tr>'
+            document.getElementById('venues-tbody').innerHTML = '<tr><td colspan="7">Error loading venues</td></tr>'
         } else {
             document.getElementById('venues-count').textContent = venues.length
             const tbody = document.getElementById('venues-tbody')
             tbody.innerHTML = '' // Clear any existing rows
             venues.forEach(venue => {
+                const associatedActivities = venue.venue_associated_activities?.map(act => act.activity_type).join(', ') || ''
                 const row = document.createElement('tr')
                 row.innerHTML = `
                     <td>${venue.id}</td>
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <td>${venue.city}</td>
                     <td>${venue.country}</td>
                     <td>${new Date(venue.created_at).toLocaleString()}</td>
+                    <td>${associatedActivities}</td>
                 `
                 tbody.appendChild(row)
             })
@@ -73,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     } catch (error) {
         showMessage('Error loading dashboard data: ' + error.message, true)
         userDataDiv.innerHTML = 'Error loading user data'
-        document.getElementById('venues-tbody').innerHTML = '<tr><td colspan="6">Error loading venues</td></tr>'
+        document.getElementById('venues-tbody').innerHTML = '<tr><td colspan="7">Error loading venues</td></tr>'
     }
 }
 )
