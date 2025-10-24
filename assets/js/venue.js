@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
         const { data: venue, error } = await window.supabaseClient
             .from('venues')
-            .select('*')
+            .select('*, venue_associated_activities(*)')
             .eq('id', venueId)
             .single()
 
@@ -42,6 +42,36 @@ document.addEventListener('DOMContentLoaded', async function () {
             showMessage('Venue not found.', true)
             detailsDiv.innerHTML = 'Venue not found.'
         } else {
+            // Activity types
+            const activityTypes = ['lunch', 'dinner', 'drinks', 'hike']
+
+            const selectedActivities = venue.venue_associated_activities?.map(act => act.activity_type) || []
+
+            function updateActivitiesDisplay() {
+                const activitiesList = document.getElementById('activities-list')
+                activitiesList.innerHTML = ''
+                if (selectedActivities.length === 0) {
+                    activitiesList.textContent = 'None'
+                } else {
+                    selectedActivities.forEach(activity => {
+                        const activityDiv = document.createElement('div')
+                        activityDiv.innerHTML = `${activity} <button class="remove-activity" data-activity="${activity}">Remove</button>`
+                        activitiesList.appendChild(activityDiv)
+                    })
+                    // Add event listeners to remove buttons
+                    document.querySelectorAll('.remove-activity').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const activity = this.getAttribute('data-activity')
+                            const index = selectedActivities.indexOf(activity)
+                            if (index > -1) {
+                                selectedActivities.splice(index, 1)
+                                updateActivitiesDisplay()
+                            }
+                        })
+                    })
+                }
+            }
+
             detailsDiv.innerHTML = `
                 <p><strong>ID:</strong> ${venue.id}</p>
                 <p><strong>Location Name:</strong> ${venue.location_name}</p>
@@ -52,9 +82,25 @@ document.addEventListener('DOMContentLoaded', async function () {
                 <p><strong>Subdivision:</strong> ${venue.subdivision || 'N/A'}</p>
                 <p><strong>Country:</strong> ${venue.country}</p>
                 <p><strong>Coordinates:</strong> ${venue.coordinates ? `${venue.coordinates.coordinates[1]}, ${venue.coordinates.coordinates[0]}` : 'N/A'}</p>
+                <p><strong>Associated Activities:</strong> <select id="activity-select">
+                    <option value="">Select activity type</option>
+                    ${activityTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
+                </select> <button id="add-activity-btn">Add</button> <div id="activities-list"></div></p>
                 <p><strong>Created At:</strong> ${new Date(venue.created_at).toLocaleString()}</p>
                 <p><strong>Updated At:</strong> ${new Date(venue.updated_at).toLocaleString()}</p>
             `
+
+            updateActivitiesDisplay()
+
+            document.getElementById('add-activity-btn').addEventListener('click', function() {
+                const select = document.getElementById('activity-select')
+                const selected = select.value
+                if (selected && !selectedActivities.includes(selected)) {
+                    selectedActivities.push(selected)
+                    updateActivitiesDisplay()
+                }
+                select.value = ''
+            })
 
             // Set map iframe
             if (venue.coordinates) {
@@ -97,6 +143,40 @@ document.addEventListener('DOMContentLoaded', async function () {
                     } catch (error) {
                         showMessage('Error: ' + error.message, true)
                     }
+                }
+            })
+
+            document.getElementById('update-activities-btn').addEventListener('click', async function() {
+                try {
+                    // Delete existing activities
+                    const { error: deleteError } = await window.supabaseClient
+                        .from('venue_associated_activities')
+                        .delete()
+                        .eq('venue_id', venueId)
+
+                    if (deleteError) {
+                        showMessage('Error updating activities: ' + deleteError.message, true)
+                        return
+                    }
+
+                    // Insert new activities
+                    if (selectedActivities.length > 0) {
+                        const activitiesData = selectedActivities.map(activity => ({
+                            venue_id: venueId,
+                            activity_type: activity
+                        }))
+                        const { error: insertError } = await window.supabaseClient
+                            .from('venue_associated_activities')
+                            .insert(activitiesData)
+                        if (insertError) {
+                            showMessage('Error updating activities: ' + insertError.message, true)
+                            return
+                        }
+                    }
+
+                    showMessage('Activities updated successfully!')
+                } catch (error) {
+                    showMessage('Error: ' + error.message, true)
                 }
             })
         }
